@@ -1,0 +1,132 @@
+#!/bin/bash
+################################################
+#         configurable variables               #
+################################################
+PROFIT_PATH=/usr/local/ProFIT-4.x
+BRANCHES_FILE=~/myscripts/branches.txt
+EDITOR=vim
+REMOTE=origin
+
+################################################
+# define some function and initial oparameters #
+################################################
+set -e
+
+ME=`basename $0`
+
+## print help information
+function print_help() {
+    echo "Работа с ветками git"
+    echo
+    echo "Использование: $ME options..."
+    echo "Параметры:"
+    echo "  -c l|r         Записать все ветки в файл $BRANCHES_FILE"
+    echo "                      r - remote (удаленный репозиторий)"
+    echo "                      l - local (локальный репозиторий)"
+    echo "  -d l|r         Удалить все ветки указанные в $BRANCHES_FILE."
+    echo "                      r - remote (удаленный репозиторий)"
+    echo "                      l - local (локальный репозиторий)" 
+    echo "  -h          Справка."
+    echo
+}
+
+## ask confirmation for file editing
+function edit_file() {
+    echo "Редактировать файл $BRANCHES_FILE? (yes/no)"
+    read edit
+    case $edit in
+        "y" | "yes") $EDITOR "$BRANCHES_FILE"
+            ;;
+        * ) exit 1
+            ;;
+    esac
+}
+
+##  copy list of all local branches to file
+function copy_branches {
+    echo "$TARGET"
+    cd $PROFIT_PATH
+    git checkout master
+    rm -f $BRANCHES_FILE
+    if [ "$TARGET" = "l" ]
+	then 
+	    git branch >> $BRANCHES_FILE
+	    edit_file;
+    elif [ "$TARGET" = "r" ]
+	then 
+	    git branch -r >> $BRANCHES_FILE
+	    edit_file;
+    else
+	echo "Пропущен дополнительный параметр";
+	echo "Для вызова справки запустите $ME -h";
+	exit 1
+    fi
+}
+
+##  ask confirmation and remove branches specified in file from git
+function remove_local_branches_on_confirm {
+    echo "ВНИМАНИЕ все ветки указанные в  файле $BRANCHES_FILE будут удалены!!!!"
+    echo "Вы уверены? (yes/no)"
+    read confirm
+    case $confirm in
+        "y" | "yes") remove_branches
+            ;;
+        *) exit 1
+            ;;
+    esac    
+}
+
+## remove branches specified in file from git
+function remove_branches {
+cd $PROFIT_PATH
+git checkout master
+while read line
+    do
+	if [ "$TARGET" = "l" ]
+	    then 
+		echo "Удаление локальной ветки $line ..."
+		git branch -D $line
+	elif [ "$TARGET" = "r" ]
+	    then 
+		pos=`expr index $line '/'`
+		((pos=$pos-1))
+		base=`expr substr $line 1 $pos`
+		((pos=$pos+2))
+		len=`expr length $line`
+		branch=`expr substr $line $pos $len`
+		echo "Удаление удаленной ветки $branch..."
+		git push -f "$REMOTE" :"$subline"
+	else
+	    echo "Пропущен дополнительный параметр";
+	    echo "Для вызова справки запустите $ME -h";
+	    exit 1
+	fi
+    done < $BRANCHES_FILE
+    #rm -rf $BRANCHES_FILE
+}
+
+## show help if no one parameter specified
+if [ $# = 0 ]; then
+    print_help
+fi
+
+################################################
+#                   Menu                       #
+################################################
+while getopts ":hc:d:" opt ;
+do
+    case $opt in
+        c)  TARGET=$OPTARG;
+            copy_branches
+            ;;
+        d)  TARGET=$OPTARG;
+	    remove_local_branches_on_confirm
+            ;;
+        h) print_help;
+            ;;
+        *) echo "Неправильный параметр";
+            echo "Для вызова справки запустите $ME -h";
+            exit 1
+            ;;
+        esac
+done
