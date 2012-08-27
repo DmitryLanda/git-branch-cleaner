@@ -5,10 +5,9 @@
 PROFIT_PATH=/usr/local/ProFIT-4.x
 BRANCHES_FILE=~/myscripts/branches.txt
 EDITOR=vim
-REMOTE=origin
 
 ################################################
-# define some function and initial oparameters #
+# define some function and initial parameters #
 ################################################
 set -e
 
@@ -49,17 +48,17 @@ function copy_branches {
     git checkout master
     rm -f $BRANCHES_FILE
     if [ "$TARGET" = "l" ]
-	then 
-	    git branch >> $BRANCHES_FILE
-	    edit_file;
+    then
+        git branch >> $BRANCHES_FILE
+        edit_file;
     elif [ "$TARGET" = "r" ]
-	then 
-	    git branch -r >> $BRANCHES_FILE
-	    edit_file;
+    then
+        git branch -r >> $BRANCHES_FILE
+        edit_file;
     else
-	echo "Пропущен дополнительный параметр";
-	echo "Для вызова справки запустите $ME -h";
-	exit 1
+    echo "Пропущен дополнительный параметр";
+    echo "Для вызова справки запустите $ME -h";
+    exit 1
     fi
 }
 
@@ -82,27 +81,30 @@ cd $PROFIT_PATH
 git checkout master
 while read line
     do
-	if [ "$TARGET" = "l" ]
-	    then 
-		echo "Удаление локальной ветки $line ..."
-		git branch -D $line
-	elif [ "$TARGET" = "r" ]
-	    then 
-		pos=`expr index $line '/'`
-		((pos=$pos-1))
-		base=`expr substr $line 1 $pos`
-		((pos=$pos+2))
-		len=`expr length $line`
-		branch=`expr substr $line $pos $len`
-		echo "Удаление удаленной ветки $branch..."
-		git push -f "$REMOTE" :"$subline"
-	else
-	    echo "Пропущен дополнительный параметр";
-	    echo "Для вызова справки запустите $ME -h";
-	    exit 1
-	fi
+        if [ "$TARGET" = "l" ]
+            then
+            echo "Удаление локальной ветки $line ..."
+            git branch -D $line
+        elif [ "$TARGET" = "r" ]
+            then
+            pos=`expr index $line '/'`
+            ((pos=$pos-1))
+            base=`expr substr $line 1 $pos`
+            ((pos=$pos+2))
+            len=`expr length $line`
+            branch=`expr substr $line $pos $len`
+            echo "Удаление удаленной ветки $branch..."
+            ## disable exit on error
+            set +e
+            git push "$base" :"$branch"
+            set -e
+        else
+            echo "Пропущен дополнительный параметр";
+            echo "Для вызова справки запустите $ME -h";
+            exit 1
+        fi
     done < $BRANCHES_FILE
-    #rm -rf $BRANCHES_FILE
+    rm -rf $BRANCHES_FILE
 }
 
 ## show help if no one parameter specified
@@ -114,19 +116,19 @@ fi
 #                   Menu                       #
 ################################################
 while getopts ":hc:d:" opt ;
-do
-    case $opt in
-        c)  TARGET=$OPTARG;
-            copy_branches
-            ;;
-        d)  TARGET=$OPTARG;
-	    remove_local_branches_on_confirm
-            ;;
-        h) print_help;
-            ;;
-        *) echo "Неправильный параметр";
-            echo "Для вызова справки запустите $ME -h";
-            exit 1
-            ;;
-        esac
-done
+    do
+        case $opt in
+            c)  TARGET=$OPTARG;
+                copy_branches
+                ;;
+            d)  TARGET=$OPTARG;
+           remove_local_branches_on_confirm
+                ;;
+            h) print_help;
+                ;;
+            *) echo "Неправильный параметр";
+                echo "Для вызова справки запустите $ME -h";
+                exit 1
+                ;;
+            esac
+    done
